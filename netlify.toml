@@ -1,0 +1,11 @@
+[build]
+  command = "npm install && npm run build"
+  publish = "dist/frontend/browser"
+
+# Angular is a client-side-routed SPA — without this, refreshing on any
+# route other than "/" (e.g. /display, /window) returns a Netlify 404,
+# since there's no actual file at that path on disk.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

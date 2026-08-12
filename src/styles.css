@@ -1,0 +1,9 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f4f6f5; color: #1a1a1a; }
+button { font-family: inherit; cursor: pointer; }
+input, select { font-family: inherit; }
+
+:root {
+  --primary: #02542D;
+  --primary-dark: #023d21;
+}
