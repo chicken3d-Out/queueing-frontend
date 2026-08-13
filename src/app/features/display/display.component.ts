@@ -106,7 +106,7 @@ const VIDEO_ASPECT = 16 / 9;
       .offline-note { position: absolute; bottom: 8px; font-size: 12px; color: #FFD873; }
 
       .video-half { background: #000; position: relative; overflow: hidden; }
-      .video-half iframe { position: absolute; top: 50%; left: 50%; border: 0; display: block; transform: translate(-50%, -50%); }
+      .video-half iframe { position: absolute; top: 50%; left: 50%; width: 100%; height: 100%; border: 0; display: block; transform: translate(-50%, -50%); }
 
       .grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: rgba(255,255,255,0.15); }
       .cell { background: var(--primary-dark); padding: clamp(10px, 1.6vw, 18px) 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; min-height: 150px; }
