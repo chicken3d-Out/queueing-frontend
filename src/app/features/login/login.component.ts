@@ -1,13 +1,13 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="wrap">
       <form class="card" (ngSubmit)="submit()">
@@ -23,6 +23,8 @@ import { AuthService } from '../../core/services/auth.service';
         <p class="error" *ngIf="error">{{ error }}</p>
 
         <button type="submit" [disabled]="loading">{{ loading ? 'Signing in…' : 'Sign In' }}</button>
+
+        <a routerLink="/display" class="display-link">View Public Display →</a>
       </form>
     </div>
   `,
@@ -37,6 +39,8 @@ import { AuthService } from '../../core/services/auth.service';
       button { width: 100%; margin-top: 20px; padding: 12px; background: var(--primary); color: #fff; border: none; border-radius: 6px; font-weight: 600; font-size: 15px; }
       button:disabled { opacity: 0.6; }
       .error { color: #b3261e; font-size: 13px; margin: 12px 0 0; }
+      .display-link { display: block; text-align: center; margin-top: 14px; font-size: 13px; color: var(--primary); text-decoration: none; }
+      .display-link:hover { text-decoration: underline; }
     `,
   ],
 })
