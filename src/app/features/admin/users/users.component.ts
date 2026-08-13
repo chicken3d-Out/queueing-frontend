@@ -2,7 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { environment } from '../../../../environments/environment';
+import { AuthService } from '../../../core/services/auth.service';
 
 interface User {
   id: number;
@@ -34,7 +36,10 @@ interface EditForm {
   imports: [CommonModule, FormsModule],
   template: `
     <div class="page">
-      <h1>Manage Users</h1>
+      <header class="page-header">
+        <h1>Manage Users</h1>
+        <button class="logout" (click)="logout()">Sign out</button>
+      </header>
 
       <form class="add-form" (ngSubmit)="addUser()">
         <input placeholder="Username" name="username" [(ngModel)]="newUser.username" required />
@@ -118,7 +123,9 @@ interface EditForm {
   styles: [
     `
       .page { max-width: 900px; margin: 0 auto; padding: 32px 20px; font-family: system-ui, sans-serif; }
+      .page-header { display: flex; justify-content: space-between; align-items: center; }
       h1 { color: var(--primary); }
+      .logout { background: none; border: 1px solid #ccc; border-radius: 6px; padding: 6px 12px; font-size: 13px; height: fit-content; }
       .add-form { display: flex; gap: 8px; flex-wrap: wrap; background: #fff; padding: 16px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
       .add-form input, .add-form select { flex: 1 1 160px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
       .add-form button { padding: 8px 16px; background: var(--primary); color: #fff; border: none; border-radius: 6px; font-weight: 600; }
@@ -158,7 +165,12 @@ export class AdminUsersComponent implements OnInit {
   editForm: EditForm = { username: '', full_name: '', role: '', window_id: null, new_password: '' };
   editError = '';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private auth: AuthService, private router: Router) {}
+
+  logout(): void {
+    this.auth.logout();
+    this.router.navigate(['/login']);
+  }
 
   ngOnInit(): void {
     this.load();

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, Renderer2 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -25,8 +25,8 @@ interface DisplayState {
 }
 
 // Change this to swap the video shown on the right half of the display.
-// Muted + autoplay is required for browsers to allow autoplay at all.
 const VIDEO_ID = 'aVs7bdB5wiU';
+const VIDEO_ASPECT = 16 / 9;
 
 @Component({
   selector: 'app-display',
@@ -53,8 +53,14 @@ const VIDEO_ID = 'aVs7bdB5wiU';
           <div class="offline-note" *ngIf="!connected">Reconnecting…</div>
         </div>
 
-        <div class="video-half">
+        <!-- #videoContainer is the crop window; the iframe inside is deliberately
+             oversized and centered by sizeVideoToCover() below, so the video
+             fills the box completely with no letterboxing, cropping any excess
+             instead of shrinking to fit (same idea as CSS object-fit: cover,
+             which iframes don't support natively). -->
+        <div class="video-half" #videoContainer>
           <iframe
+            #videoFrame
             [src]="videoUrl"
             title="Display video"
             frameborder="0"
@@ -100,7 +106,7 @@ const VIDEO_ID = 'aVs7bdB5wiU';
       .offline-note { position: absolute; bottom: 8px; font-size: 12px; color: #FFD873; }
 
       .video-half { background: #000; position: relative; overflow: hidden; }
-      .video-half iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; display: block; }
+      .video-half iframe { position: absolute; top: 50%; left: 50%; border: 0; display: block; transform: translate(-50%, -50%); }
 
       .grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: rgba(255,255,255,0.15); }
       .cell { background: var(--primary-dark); padding: clamp(10px, 1.6vw, 18px) 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; min-height: 150px; }
@@ -122,7 +128,10 @@ const VIDEO_ID = 'aVs7bdB5wiU';
     `,
   ],
 })
-export class DisplayComponent implements OnInit {
+export class DisplayComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('videoContainer') videoContainerRef!: ElementRef<HTMLDivElement>;
+  @ViewChild('videoFrame') videoFrameRef!: ElementRef<HTMLIFrameElement>;
+
   state: DisplayState | null = null;
   now = new Date();
   flash = false;
@@ -131,11 +140,9 @@ export class DisplayComponent implements OnInit {
 
   private speechQueue: string[] = [];
   private speaking = false;
+  private resizeObserver: ResizeObserver | null = null;
 
-  constructor(private http: HttpClient, private socket: SocketService, private sanitizer: DomSanitizer) {
-    // Angular blocks iframe src by default (XSS protection) unless
-    // explicitly marked safe — this is the standard, correct way to embed
-    // a known-trusted YouTube URL, not a way to bypass real security.
+  constructor(private http: HttpClient, private socket: SocketService, private sanitizer: DomSanitizer, private renderer: Renderer2) {
     const url = `https://www.youtube.com/embed/${VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${VIDEO_ID}&playsinline=1&controls=0`;
     this.videoUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
@@ -144,9 +151,6 @@ export class DisplayComponent implements OnInit {
     this.load();
     setInterval(() => (this.now = new Date()), 1000); // clock tick only — not a data request
 
-    // The only two triggers for re-fetching data: something actually
-    // changed (queue:update), or we just reconnected after a drop (to
-    // catch up on anything missed). No fixed-interval polling anywhere.
     this.socket.queueUpdate$.subscribe(() => this.load());
     this.socket.connected$.subscribe(() => {
       this.connected = true;
@@ -159,6 +163,53 @@ export class DisplayComponent implements OnInit {
         this.enqueueSpeech(`Number ${payload.number}, please proceed to window ${payload.window_number}.`);
       }
     });
+  }
+
+  ngAfterViewInit(): void {
+    this.sizeVideoToCover();
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this.sizeVideoToCover());
+      this.resizeObserver.observe(this.videoContainerRef.nativeElement);
+    } else {
+      window.addEventListener('resize', () => this.sizeVideoToCover());
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+  }
+
+  /**
+   * Oversizes the iframe so it always fully covers its container (cropping
+   * the excess) instead of letterboxing — iframes don't support CSS
+   * object-fit, so this has to be computed in JS, same technique as
+   * background-size: cover.
+   */
+  private sizeVideoToCover(): void {
+    const container = this.videoContainerRef?.nativeElement;
+    const frame = this.videoFrameRef?.nativeElement;
+    if (!container || !frame) return;
+
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (!w || !h) return;
+
+    const containerAspect = w / h;
+    let targetW: number;
+    let targetH: number;
+
+    if (containerAspect > VIDEO_ASPECT) {
+      // Container is wider than the video — match width, let height overflow.
+      targetW = w;
+      targetH = w / VIDEO_ASPECT;
+    } else {
+      // Container is taller/narrower than the video — match height, let width overflow.
+      targetH = h;
+      targetW = h * VIDEO_ASPECT;
+    }
+
+    this.renderer.setStyle(frame, 'width', `${Math.ceil(targetW)}px`);
+    this.renderer.setStyle(frame, 'height', `${Math.ceil(targetH)}px`);
   }
 
   private load(): void {
