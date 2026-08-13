@@ -106,7 +106,9 @@ export class FrontDeskComponent implements OnInit {
   loadQueueTypes(): void {
     this.http.get<{ success: boolean; queue_types: QueueType[] }>(`${environment.apiUrl}/admin/queues`).subscribe({
       next: (res) => (this.queueTypes = res.queue_types || []),
-      error: () => {},
+      error: (err) => {
+        this.error = err.error?.error || 'Could not load the list of transactions. Try refreshing the page.';
+      },
     });
   }
 

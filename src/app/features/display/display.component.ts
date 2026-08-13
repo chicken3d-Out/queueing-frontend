@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { environment } from '../../../environments/environment';
 import { SocketService } from '../../core/services/socket.service';
 
@@ -23,6 +24,10 @@ interface DisplayState {
   announcements_enabled: boolean;
 }
 
+// Change this to swap the video shown on the right half of the display.
+// Muted + autoplay is required for browsers to allow autoplay at all.
+const VIDEO_ID = 'aVs7bdB5wiU';
+
 @Component({
   selector: 'app-display',
   standalone: true,
@@ -40,11 +45,23 @@ interface DisplayState {
         </div>
       </header>
 
-      <div class="hero" [class.offline]="!connected">
-        <div class="hero-label">Now Serving</div>
-        <div class="hero-number" [class.flash]="flash">{{ s.current_call?.number || '---' }}</div>
-        <div class="hero-window" *ngIf="s.current_call">Window {{ s.current_call.window_number }}</div>
-        <div class="offline-note" *ngIf="!connected">Reconnecting…</div>
+      <div class="splitrow">
+        <div class="hero" [class.offline]="!connected">
+          <div class="hero-label">Now Serving</div>
+          <div class="hero-number" [class.flash]="flash">{{ s.current_call?.number || '---' }}</div>
+          <div class="hero-window" *ngIf="s.current_call">Window {{ s.current_call.window_number }}</div>
+          <div class="offline-note" *ngIf="!connected">Reconnecting…</div>
+        </div>
+
+        <div class="video-half">
+          <iframe
+            [src]="videoUrl"
+            title="Display video"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen>
+          </iframe>
+        </div>
       </div>
 
       <div class="grid">
@@ -69,14 +86,22 @@ interface DisplayState {
       .clock { text-align: right; font-variant-numeric: tabular-nums; }
       .date { font-size: clamp(12px, 1.2vw, 16px); opacity: 0.85; }
       .time { font-size: clamp(16px, 2.2vw, 28px); font-weight: 700; }
-      .hero { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(20px, 4vw, 36px) 12px; border-bottom: 2px solid rgba(255,255,255,0.15); position: relative; }
+
+      .splitrow { display: flex; align-items: stretch; border-bottom: 2px solid rgba(255,255,255,0.15); min-height: 300px; }
+      .hero, .video-half { flex: 1 1 50%; width: 50%; }
+
+      .hero { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(16px, 3vw, 24px) 12px; background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent); border-right: 2px solid rgba(255,255,255,0.15); position: relative; }
       .hero-label { font-size: clamp(13px, 1.5vw, 20px); letter-spacing: 0.15em; opacity: 0.8; text-transform: uppercase; }
-      .hero-number { font-family: monospace; font-size: clamp(56px, 11vw, 180px); font-weight: 800; line-height: 1; margin: 8px 0; font-variant-numeric: tabular-nums; transition: transform 0.25s ease; }
+      .hero-number { font-family: monospace; font-size: clamp(48px, 9vw, 160px); font-weight: 800; line-height: 1; margin: 8px 0; font-variant-numeric: tabular-nums; transition: transform 0.25s ease; }
       .hero-number.flash { animation: flashScale 0.9s ease; }
       @keyframes flashScale { 0% { transform: scale(1); } 25% { transform: scale(1.08); color: #FFD873; } 100% { transform: scale(1); } }
       .hero-window { font-size: clamp(15px, 1.8vw, 28px); font-weight: 700; opacity: 0.95; }
       .offline { opacity: 0.6; }
       .offline-note { position: absolute; bottom: 8px; font-size: 12px; color: #FFD873; }
+
+      .video-half { background: #000; position: relative; overflow: hidden; }
+      .video-half iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; display: block; }
+
       .grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: rgba(255,255,255,0.15); }
       .cell { background: var(--primary-dark); padding: clamp(10px, 1.6vw, 18px) 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; min-height: 150px; }
       .cell.idle { opacity: 0.5; }
@@ -88,7 +113,12 @@ interface DisplayState {
       .next-numbers { font-family: monospace; font-size: clamp(14px, 1.5vw, 22px); font-weight: 600; }
 
       @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-      @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+      @media (max-width: 640px) {
+        .grid { grid-template-columns: 1fr; }
+        .splitrow { flex-direction: column; }
+        .hero, .video-half { width: 100%; min-height: 220px; }
+        .hero { border-right: none; border-bottom: 2px solid rgba(255,255,255,0.15); }
+      }
     `,
   ],
 })
@@ -97,11 +127,18 @@ export class DisplayComponent implements OnInit {
   now = new Date();
   flash = false;
   connected = true;
+  videoUrl: SafeResourceUrl;
 
   private speechQueue: string[] = [];
   private speaking = false;
 
-  constructor(private http: HttpClient, private socket: SocketService) {}
+  constructor(private http: HttpClient, private socket: SocketService, private sanitizer: DomSanitizer) {
+    // Angular blocks iframe src by default (XSS protection) unless
+    // explicitly marked safe — this is the standard, correct way to embed
+    // a known-trusted YouTube URL, not a way to bypass real security.
+    const url = `https://www.youtube.com/embed/${VIDEO_ID}?autoplay=1&mute=1&loop=1&playlist=${VIDEO_ID}&playsinline=1&controls=0`;
+    this.videoUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
 
   ngOnInit(): void {
     this.load();

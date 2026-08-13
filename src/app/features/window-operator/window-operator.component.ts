@@ -21,6 +21,20 @@ interface WindowState {
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
+    <div class="page" *ngIf="!state && loading">
+      <p class="loading">Loading your window…</p>
+    </div>
+
+    <div class="page" *ngIf="!state && !loading">
+      <div class="load-error">
+        <h1>Can't load this window</h1>
+        <p>{{ loadError || 'Something went wrong.' }}</p>
+        <p class="hint">If you're not sure why, ask an administrator to check that your account has a window assigned (Admin → Users).</p>
+        <button (click)="load()">Try Again</button>
+        <button class="logout" (click)="logout()">Sign out</button>
+      </div>
+    </div>
+
     <div class="page" *ngIf="state as s">
       <header>
         <div>
@@ -67,11 +81,18 @@ interface WindowState {
       .primary { grid-column: 1 / -1; background: var(--primary); color: #fff; }
       .success { background: #1a7a3a; color: #fff; }
       .danger { background: #b3261e; color: #fff; }
+      .loading { text-align: center; color: #666; margin-top: 60px; }
+      .load-error { background: #fff; border-radius: 10px; padding: 24px; margin-top: 40px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+      .load-error h1 { color: #b3261e; font-size: 18px; margin: 0 0 8px; }
+      .load-error .hint { color: #888; font-size: 13px; }
+      .load-error button { margin-top: 12px; }
     `,
   ],
 })
 export class WindowOperatorComponent implements OnInit {
   state: WindowState | null = null;
+  loading = true;
+  loadError = '';
   busy = false;
   error = '';
 
@@ -84,7 +105,18 @@ export class WindowOperatorComponent implements OnInit {
   }
 
   load(): void {
-    this.http.get<WindowState>(`${environment.apiUrl}/window`).subscribe({ next: (s) => (this.state = s) });
+    this.loading = true;
+    this.http.get<WindowState>(`${environment.apiUrl}/window`).subscribe({
+      next: (s) => {
+        this.loading = false;
+        this.state = s;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.state = null;
+        this.loadError = err.error?.error || 'Could not reach the server.';
+      },
+    });
   }
 
   private run(path: string, body: any = {}): void {
