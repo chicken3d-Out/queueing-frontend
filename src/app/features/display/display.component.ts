@@ -70,8 +70,19 @@ const VIDEO_ASPECT = 16 / 9;
         </div>
       </div>
 
-      <div class="grid">
-        <div class="cell" *ngFor="let w of s.windows" [class.idle]="!w.current_number">
+      <div class="grid-row" *ngIf="topRow.length" [style.grid-template-columns]="'repeat(' + topRow.length + ', 1fr)'">
+        <div class="cell" *ngFor="let w of topRow" [class.idle]="!w.current_number">
+          <div class="cell-window">{{ w.window_name }}</div>
+          <div class="cell-number">{{ w.current_number || '—' }}</div>
+          <div class="cell-queue">{{ w.queue_name }}</div>
+          <div class="cell-next" *ngIf="w.next_up.length">
+            <div class="next-label">Next Up</div>
+            <div class="next-numbers">{{ w.next_up.join(', ') }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-row" *ngIf="bottomRow.length" [style.grid-template-columns]="'repeat(' + bottomRow.length + ', 1fr)'">
+        <div class="cell" *ngFor="let w of bottomRow" [class.idle]="!w.current_number">
           <div class="cell-window">{{ w.window_name }}</div>
           <div class="cell-number">{{ w.current_number || '—' }}</div>
           <div class="cell-queue">{{ w.queue_name }}</div>
@@ -108,7 +119,7 @@ const VIDEO_ASPECT = 16 / 9;
       .video-half { background: #000; position: relative; overflow: hidden; }
       .video-half iframe { position: absolute; top: 50%; left: 50%; width: 100%; height: 100%; border: 0; display: block; transform: translate(-50%, -50%); }
 
-      .grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: rgba(255,255,255,0.15); }
+      .grid-row { flex: 1; display: grid; gap: 2px; background: rgba(255,255,255,0.15); }
       .cell { background: var(--primary-dark); padding: clamp(10px, 1.6vw, 18px) 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; min-height: 150px; }
       .cell.idle { opacity: 0.5; }
       .cell-window { font-size: clamp(14px, 1.4vw, 21px); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
@@ -118,9 +129,9 @@ const VIDEO_ASPECT = 16 / 9;
       .next-label { letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
       .next-numbers { font-family: monospace; font-size: clamp(14px, 1.5vw, 22px); font-weight: 600; }
 
-      @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 900px) { .grid-row { grid-template-columns: repeat(2, 1fr) !important; } }
       @media (max-width: 640px) {
-        .grid { grid-template-columns: 1fr; }
+        .grid-row { grid-template-columns: 1fr !important; }
         .splitrow { flex-direction: column; }
         .hero, .video-half { width: 100%; min-height: 220px; }
         .hero { border-right: none; border-bottom: 2px solid rgba(255,255,255,0.15); }
@@ -210,6 +221,14 @@ export class DisplayComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.renderer.setStyle(frame, 'width', `${Math.ceil(targetW)}px`);
     this.renderer.setStyle(frame, 'height', `${Math.ceil(targetH)}px`);
+  }
+
+  get topRow(): WindowDisplay[] {
+    return this.state?.windows.slice(0, 3) || [];
+  }
+
+  get bottomRow(): WindowDisplay[] {
+    return this.state?.windows.slice(3) || [];
   }
 
   private load(): void {

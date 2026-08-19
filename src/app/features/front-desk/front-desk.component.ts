@@ -153,6 +153,6 @@ export class FrontDeskComponent implements OnInit {
   }
 
   isRemovable(status: string): boolean {
-    return status === 'WAITING' || status === 'CALLED' || status === 'SERVING';
+    return status === 'WAITING' || status === 'CALLED' || status === 'SERVING' || status === 'SKIPPED';
   }
 }
