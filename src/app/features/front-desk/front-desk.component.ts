@@ -53,7 +53,7 @@ interface Ticket {
             <td class="mono">{{ t.number }}</td>
             <td>{{ t.queue_name }}</td>
             <td><span class="badge" [class]="'badge--' + t.status.toLowerCase()">{{ t.status }}</span></td>
-            <td><button class="cancel" *ngIf="t.status === 'WAITING'" (click)="cancel(t.id)">Cancel</button></td>
+            <td><button class="cancel" *ngIf="isRemovable(t.status)" (click)="cancel(t.id)">Remove from Queue</button></td>
           </tr>
           <tr *ngIf="!tickets.length"><td colspan="4" class="empty">No active tickets.</td></tr>
         </tbody>
@@ -150,5 +150,9 @@ export class FrontDeskComponent implements OnInit {
 
   pad(n: number): string {
     return String(n).padStart(3, '0');
+  }
+
+  isRemovable(status: string): boolean {
+    return status === 'WAITING' || status === 'CALLED' || status === 'SERVING';
   }
 }
