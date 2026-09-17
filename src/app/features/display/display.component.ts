@@ -25,7 +25,7 @@ interface DisplayState {
 }
 
 // Change this to swap the video shown on the right half of the display.
-const VIDEO_ID = 'aVs7bdB5wiU';
+const VIDEO_ID = 'AI2M_YxjciM';
 const VIDEO_ASPECT = 16 / 9;
 
 @Component({
